@@ -147,11 +147,20 @@ export class StravaService {
       const activities = response.data;
       found = activities.length;
 
+      console.log(`[Strava] Poll fetched ${found} activities. Last sync: ${lastSync || 'never'}`);
+
+      // Log activity types for debugging
+      const types = new Set(activities.map(a => a.type));
+      console.log('[Strava] Activity types found:', Array.from(types));
+
       // Process each activity
       for (const activity of activities) {
         try {
-          // Skip non-running activities
-          if (activity.type !== 'Run') continue;
+          // Skip non-running activities - accept 'Run', 'VirtualRun', 'TrailRun', 'Race'
+          const runTypes = ['Run', 'VirtualRun', 'TrailRun', 'Race'];
+          if (!runTypes.includes(activity.type)) {
+            continue;
+          }
 
           // Check if already exists
           const existing = this.db.getRunByStravaId(activity.id);
@@ -187,7 +196,9 @@ export class StravaService {
 
           this.db.insertRun(run);
           added++;
+          console.log(`[Strava] Added run: ${activity.name} (${(activity.distance/1000).toFixed(2)} km)`);
         } catch (err: any) {
+          console.error(`[Strava] Error processing activity ${activity.id}:`, err.message);
           errors.push(`Activity ${activity.id}: ${err.message}`);
         }
       }
