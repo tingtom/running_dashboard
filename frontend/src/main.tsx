@@ -14,7 +14,7 @@ const queryClient = new QueryClient({
       staleTime: 5 * 60 * 1000 // 5 minutes
     }
   }
-);
+});
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
