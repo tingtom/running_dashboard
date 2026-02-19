@@ -7,8 +7,7 @@ import {
   getStatsSummary,
   getConsistencyStats,
   triggerStravaSync,
-  scrapeParkrun,
-  getPersonalRecords
+  scrapeParkrun
 } from '@/lib/api-client';
 import { RefreshCw, Trophy, Activity, Flame, Target, TrendingUp, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';

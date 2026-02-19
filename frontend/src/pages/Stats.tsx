@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   LineChart,
@@ -23,7 +22,9 @@ import {
   getPersonalRecords,
   getLocationStats
 } from '@/lib/api-client';
-import { MapPin, TrendingUp, Award, Activity, Target, Calendar, Flame } from 'lucide-react';
+import {
+  MapPin, TrendingUp, Trophy, Activity, Target
+} from 'lucide-react';
 
 export default function Stats() {
   const { data: summary } = useQuery({
@@ -316,19 +317,6 @@ export default function Stats() {
           </CardContent>
         </Card>
       </div>
-
-      {/* 5K Prediction */}
-      <Card>
-        <CardHeader>
-          <CardTitle>5K Prediction</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {(() => {
-            // We'll query prediction separately maybe but quick check: could be fetched
-            return <p className="text-sm text-muted-foreground">Predictions require at least one 5K-equivalent run.</p>;
-          })()}
-        </CardContent>
-      </Card>
     </div>
   );
 }
