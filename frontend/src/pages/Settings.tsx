@@ -37,19 +37,12 @@ export default function Settings() {
   const syncMutation = useMutation({
     mutationFn: () => triggerStravaSync(),
     onSuccess: (data) => {
-      toast({
-        title: 'Sync Complete',
-        description: `Added ${data.activities_added} activities`
-      });
+      toast.success(`✓ Synced ${data.activities_added} new activities`);
       queryClient.invalidateQueries({ queryKey: ['runs'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
     onError: (error: any) => {
-      toast({
-        title: 'Sync Failed',
-        description: error.response?.data?.error || error.message,
-        variant: 'destructive'
-      });
+      toast.error(`✗ Sync failed: ${error.response?.data?.error || error.message}`);
     }
   });
 
@@ -58,11 +51,7 @@ export default function Settings() {
       const response = await getStravaAuthUrl();
       window.location.href = response.url;
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.response?.data?.error || error.message,
-        variant: 'destructive'
-      });
+      toast.error(`✗ Error: ${error.response?.data?.error || error.message}`);
     }
   };
 
@@ -72,17 +61,10 @@ export default function Settings() {
         schedule: parkrunSchedule,
         enabled: parkrunEnabled
       });
-      toast({
-        title: 'Settings Saved',
-        description: 'Parkrun configuration updated'
-      });
+      toast.success('✓ Parkrun configuration updated');
       queryClient.invalidateQueries({ queryKey: ['parkrun', 'schedule'] });
     } catch (error: any) {
-      toast({
-        title: 'Save Failed',
-        description: error.response?.data?.error || error.message,
-        variant: 'destructive'
-      });
+      toast.error(`✗ Save failed: ${error.response?.data?.error || error.message}`);
     }
   };
 
