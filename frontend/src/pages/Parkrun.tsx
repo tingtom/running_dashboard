@@ -62,19 +62,18 @@ export default function Parkrun() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Parkrun</h1>
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center text-sm text-muted-foreground">
-            <Clock className="mr-1 h-4 w-4" />
-            Next scrape: {scheduleError ? 'Error loading schedule' : formatNextRun(schedule?.next_run)}
+      {/* Header with gradient */}
+      <div className="rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 p-6 text-white shadow-lg">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold flex items-center">
+              <Trophy className="mr-3 h-8 w-8" />
+              Parkrun Hub
+            </h1>
+            <p className="mt-2 text-purple-100">
+              Track your parkrun performance and history
+            </p>
           </div>
-          <Button onClick={handleScrape}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Scrape Now
-          </Button>
-        </div>
-      </div>
           <Button
             onClick={handleScrape}
             size="lg"
