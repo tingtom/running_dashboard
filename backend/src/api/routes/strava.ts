@@ -47,6 +47,12 @@ router.post('/sync', async (req: Request, res: Response) => {
     const stravaService = getStravaService(config);
     const result = await stravaService.pollActivities();
 
+    console.log(`[Strava] Manual sync: ${result.added} added, ${result.found} fetched, ${result.errors.length} errors`);
+
+    if (result.errors.length > 0) {
+      console.warn('[Strava] Sync errors:', result.errors);
+    }
+
     res.json({
       message: 'Sync completed',
       activities_found: result.found,
@@ -54,6 +60,7 @@ router.post('/sync', async (req: Request, res: Response) => {
       errors: result.errors
     });
   } catch (error: any) {
+    console.error('[Strava] Sync exception:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -76,12 +83,15 @@ router.get('/status', async (req: Request, res: Response) => {
       tokenValid = Date.now() < expiresAt.getTime();
     }
 
+    console.log(`[Strava] Status check: connected=${connected}, token_valid=${tokenValid}`);
+
     res.json({
       connected,
       token_expires_at: expiresAt,
       token_valid: tokenValid
     });
   } catch (error: any) {
+    console.error('[Strava] Status error:', error);
     res.status(500).json({ error: error.message });
   }
 });
