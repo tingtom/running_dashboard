@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { getStatsService } from '../services/stats.service';
-import { AppConfig } from '../config/config.service';
+import { getStatsService } from '../../services/stats.service';
+import { AppConfig } from '../../config/config.service';
 
 const router = Router();
 

@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { DatabaseService, getDatabase } from '../services/database.service';
-import { Run } from '../models/database.types';
+import { DatabaseService, getDatabase } from '../../services/database.service';
+import { Run } from '../../models/database.types';
 import multer from 'multer';
 import GPXParser from 'gpxparser';
 import { tcxParser } from 'tcxparser';

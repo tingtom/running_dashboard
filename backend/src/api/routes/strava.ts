@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { DatabaseService, getDatabase } from '../services/database.service';
-import { getStravaService } from '../services/strava.service';
-import { AppConfig } from '../config/config.service';
+import { getDatabase } from '../../services/database.service';
+import { getStravaService } from '../../services/strava.service';
+import { AppConfig } from '../../config/config.service';
 
 const router = Router();
 

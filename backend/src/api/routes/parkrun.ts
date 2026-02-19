@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { getParkrunService } from '../services/parkrun.service';
-import { AppConfig } from '../config/config.service';
+import { getParkrunService } from '../../services/parkrun.service';
+import { AppConfig } from '../../config/config.service';
 import Joi from 'joi';
 import * as fs from 'fs';
 
