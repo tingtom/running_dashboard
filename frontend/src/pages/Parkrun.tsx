@@ -3,13 +3,14 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import {
   getParkrunResults,
   scrapeParkrun,
   getParkrunSchedule
 } from '@/lib/api-client';
-import { Calendar, RefreshCw, Clock } from 'lucide-react';
-import { toast } from '@radix-ui/react-toast';
+import { Calendar, RefreshCw, Clock, Trophy, Target, Search } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function Parkrun() {
   const [runnerFilter, setRunnerFilter] = useState('');
@@ -28,123 +29,244 @@ export default function Parkrun() {
   const handleScrape = async () => {
     try {
       const result = await scrapeParkrun(90);
-      toast({
-        title: 'Scrape Complete',
-        description: `Found ${result.eventsFound} events, added ${result.resultsAdded} results.`
-      });
+      toast.success(`✓ Found ${result.eventsFound} events, added ${result.resultsAdded} results.`);
       refetch();
     } catch (error: any) {
-      toast({
-        title: 'Scrape Failed',
-        description: error.response?.data?.error || error.message,
-        variant: 'destructive'
-      });
+      toast.error(`✗ ${error.response?.data?.error || error.message}`);
     }
   };
 
   const formatNextRun = (dateStr?: string) => {
     if (!dateStr) return 'Not scheduled';
     const date = new Date(dateStr);
-    return date.toLocaleString();
+    return date.toLocaleDateString('en-GB', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
+
+  // Calculate some quick stats
+  const totalResults = resultsData?.results?.length || 0;
+  const avgPosition = resultsData?.results?.length > 0
+    ? Math.round(resultsData.results.reduce((sum: number, r: any) => sum + (r.position || 0), 0) / resultsData.results.length)
+    : 0;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Parkrun</h1>
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center text-sm text-muted-foreground">
-            <Clock className="mr-1 h-4 w-4" />
-            Next scrape: {formatNextRun(schedule?.next_run)}
+      {/* Header with gradient */}
+      <div className="rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 p-6 text-white shadow-lg">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold flex items-center">
+              <Trophy className="mr-3 h-8 w-8" />
+              Parkrun Hub
+            </h1>
+            <p className="mt-2 text-purple-100">
+              Track your parkrun performance and history
+            </p>
           </div>
-          <Button onClick={handleScrape}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Scrape Now
+          <Button
+            onClick={handleScrape}
+            size="lg"
+            className="bg-white text-purple-700 hover:bg-purple-50 shadow-lg"
+          >
+            <RefreshCw className="mr-2 h-5 w-5" />
+            Sync Results
           </Button>
         </div>
       </div>
 
-      {/* Filter */}
-      <Card>
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="border-l-4 border-l-blue-500">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Results</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-blue-600">{totalResults}</div>
+            <p className="text-xs text-muted-foreground mt-1">runs recorded</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-emerald-500">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Next Auto-Sync</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-lg font-bold text-emerald-600">
+              {formatNextRun(schedule?.next_run)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {schedule?.enabled ? 'Automated' : 'Disabled'}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-amber-500">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Avg Position</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-amber-600">
+              {avgPosition > 0 ? `#${avgPosition}` : '-'}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">out of all runners</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filter Card */}
+      <Card className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
         <CardHeader>
-          <CardTitle>Filter Results</CardTitle>
+          <CardTitle className="flex items-center">
+            <Search className="mr-2 h-5 w-5 text-blue-600" />
+            Search Your Results
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid w-full max-w-sm items-center gap-1.5">
-            <label className="text-sm font-medium">Runner Name</label>
-            <Input
-              placeholder="Your name"
-              value={runnerFilter}
-              onChange={(e) => setRunnerFilter(e.target.value)}
-            />
+          <div className="flex gap-4 items-end">
+            <div className="flex-1 max-w-md">
+              <label className="text-sm font-medium mb-1.5 block">Runner Name</label>
+              <Input
+                placeholder="Enter your name as it appears on parkrun"
+                value={runnerFilter}
+                onChange={(e) => setRunnerFilter(e.target.value)}
+                className="bg-white dark:bg-slate-950"
+              />
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => setRunnerFilter('')}
+              disabled={!runnerFilter}
+            >
+              Clear
+            </Button>
           </div>
         </CardContent>
       </Card>
 
       {/* Results Table */}
       <Card>
-        <CardHeader>
-          <CardTitle>Results</CardTitle>
+        <CardHeader className="bg-gradient-to-r from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900">
+          <CardTitle className="flex items-center">
+            <Target className="mr-2 h-5 w-5 text-emerald-600" />
+            Results History
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {resultsData?.results && resultsData.results.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="py-2 text-left">Date</th>
-                    <th className="py-2 text-left">Position</th>
-                    <th className="py-2 text-left">Time</th>
-                    <th className="py-2 text-left">Category</th>
-                    <th className="py-2 text-left">Gender Pos</th>
-                    <th className="py-2 text-left">Age Grade</th>
+                <thead className="bg-slate-100 dark:bg-slate-800">
+                  <tr>
+                    {['Date', 'Position', 'Time', 'Category', 'Gender Pos', 'Age Grade'].map((col, i) => (
+                      <th key={col} className="py-3 px-4 text-left font-semibold text-slate-700 dark:text-slate-300">
+                        {col}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {resultsData.results.map((result: any, idx: number) => (
-                    <tr key={idx} className="border-b">
-                      <td className="py-2">
-                        {new Date(result.parkrun_date).toLocaleDateString()}
-                      </td>
-                      <td className="py-2">
-                        {result.position}/{result.total_runners}
-                      </td>
-                      <td className="py-2 font-mono">{result.finish_time}</td>
-                      <td className="py-2">{result.age_category}</td>
-                      <td className="py-2">
-                        {result.gender_position ? `${result.gender_position}/${result.total_runners}` : '-'}
-                      </td>
-                      <td className="py-2">
-                        {result.age_grading ? `${result.age_grading.toFixed(1)}%` : '-'}
-                      </td>
-                    </tr>
-                  ))}
+                  {resultsData.results.map((result: any, idx: number) => {
+                    const position = result.position || 0;
+                    const total = result.total_runners || 0;
+                    const percentile = total > 0 ? Math.round((position / total) * 100) : 0;
+                    let badgeVariant: "default" | "secondary" | "destructive" | "outline" | "success" | "warning" = "default";
+                    if (percentile <= 10) badgeVariant = "success";
+                    else if (percentile <= 25) badgeVariant = "default";
+                    else if (percentile <= 50) badgeVariant = "secondary";
+                    else badgeVariant = "outline";
+
+                    return (
+                      <tr
+                        key={idx}
+                        className="border-b hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-colors"
+                      >
+                        <td className="py-3 px-4 font-medium">
+                          {new Date(result.parkrun_date).toLocaleDateString('en-GB', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric'
+                          })}
+                        </td>
+                        <td className="py-3 px-4">
+                          <Badge variant={badgeVariant}>
+                            {position}/{total}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4 font-mono text-base font-semibold text-slate-800 dark:text-slate-200">
+                          {result.finish_time}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 text-xs font-medium">
+                            {result.age_category || 'N/A'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-muted-foreground">
+                          {result.gender_position ? `${result.gender_position}/${total}` : '-'}
+                        </td>
+                        <td className="py-3 px-4">
+                          {result.age_grading ? (
+                            <span className={`font-medium ${result.age_grading >= 80 ? 'text-emerald-600' : result.age_grading >= 50 ? 'text-amber-600' : 'text-slate-600'}`}>
+                              {result.age_grading.toFixed(1)}%
+                            </span>
+                          ) : '-'}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           ) : (
-            <div className="py-8 text-center text-muted-foreground">
-              No parkrun results found. Scrape now to get your results.
+            <div className="py-16 text-center">
+              <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                <Search className="h-8 w-8 text-slate-400" />
+              </div>
+              <p className="text-lg font-medium text-slate-700 dark:text-slate-300">
+                No parkrun results found
+              </p>
+              <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
+                {runnerFilter
+                  ? `No results match "${runnerFilter}". Try a different name or clear the filter.`
+                  : 'Scrape your parkrun results to see them here. Kettering parkrun is configured by default.'}
+              </p>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Schedule Info Card */}
-      <Card>
+      {/* Schedule Card */}
+      <Card className="bg-gradient-to-br from-slate-800 to-slate-900 text-white border-0 shadow-xl">
         <CardHeader>
-          <CardTitle className="flex items-center">
-            <Calendar className="mr-2 h-5 w-5" />
-            Scrape Schedule
+          <CardTitle className="flex items-center text-white">
+            <Calendar className="mr-2 h-5 w-5 text-emerald-400" />
+            Automation Settings
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-1 text-sm">
-            <p><span className="font-medium">Cron:</span> {schedule?.schedule || 'Not set'}</p>
-            <p><span className="font-medium">Enabled:</span> {schedule?.enabled ? 'Yes' : 'No'}</p>
-            <p className="text-muted-foreground">
-              Parkrun results are automatically scraped weekly. You can also manually trigger a scrape for the last 90 days.
-            </p>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <p className="text-sm text-slate-400 mb-1">Cron Schedule</p>
+              <code className="block bg-slate-950/50 px-3 py-2 rounded text-emerald-400 font-mono text-sm">
+                {schedule?.schedule || 'Not set'}
+              </code>
+            </div>
+            <div>
+              <p className="text-sm text-slate-400 mb-1">Status</p>
+              <Badge variant={schedule?.enabled ? "success" : "destructive"} className="text-sm px-3 py-1">
+                {schedule?.enabled ? 'Active' : 'Disabled'}
+              </Badge>
+            </div>
+            <div>
+              <p className="text-sm text-slate-400 mb-1">Manual Trigger</p>
+              <p className="text-sm text-slate-300">
+                Scrape the last 90 days of results immediately
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
