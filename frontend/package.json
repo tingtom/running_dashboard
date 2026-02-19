@@ -35,12 +35,10 @@
     "@radix-ui/react-toast": "^1.1.5",
     "@radix-ui/react-tooltip": "^1.0.7"
   },
-  "devDependencies": {
+   "devDependencies": {
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@types/leaflet": "^1.9.8",
-    "@types/polyline": "^0.2.4",
-    "@types/geojson": "^1.0.0",
     "@typescript-eslint/eslint-plugin": "^6.13.1",
     "@typescript-eslint/parser": "^6.13.1",
     "@vitejs/plugin-react": "^4.2.1",
