@@ -1,0 +1,41 @@
+{
+  "server": {
+    "port": 3000,
+    "host": "0.0.0.0"
+  },
+  "database": {
+    "path": "/data/running.db",
+    "backup_path": "/data/backups/"
+  },
+  "strava": {
+    "client_id": "YOUR_STRAVA_CLIENT_ID",
+    "client_secret": "YOUR_STRAVA_CLIENT_SECRET",
+    "redirect_uri": "http://localhost:3001/api/strava/callback",
+    "scopes": "activity:read_all,profile:read_all",
+    "refresh_token": "",
+    "access_token": "",
+    "token_expires_at": null,
+    "poll_interval_hours": 6
+  },
+  "parkrun": {
+    "base_url": "https://www.parkrun.org.uk/kettering/results/",
+    "scrape_schedule": "0 8 * * 6",
+    "scrape_days_back": 90,
+    "enabled": true
+  },
+  "logging": {
+    "level": "info",
+    "file": "/logs/app.log",
+    "max_size_mb": 10,
+    "max_files": 5,
+    "format": "json"
+  },
+  "retention": {
+    "keep_years": 1,
+    "auto_cleanup": true,
+    "cleanup_schedule": "0 2 * * 0"
+  },
+  "frontend": {
+    "url": "http://localhost:3000"
+  }
+}

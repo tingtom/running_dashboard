@@ -1,0 +1,47 @@
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Runtime data
+data/
+*.db
+backups/
+
+# Config
+config/config.json
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Editor directories
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Dependencies
+node_modules/
+dist/
+dist-ssr/
+
+# Build outputs
+*.tsbuildinfo
+
+# Testing
+coverage/
+
+# Misc
+.cache/
+.parcel-cache/
