@@ -9,7 +9,7 @@ import {
   scrapeParkrun
 } from '@/lib/api-client';
 import { RefreshCw, Trophy, Activity } from 'lucide-react';
-import { toast } from '@radix-ui/react-toast';
+import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 
 export default function Dashboard() {

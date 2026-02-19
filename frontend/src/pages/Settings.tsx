@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { getStravaStatus, getStravaAuthUrl, triggerStravaSync } from '@/lib/api-client';
 import { getParkrunSchedule, updateParkrunSchedule } from '@/lib/api-client';
 import { RefreshCw, Link2, Unlink } from 'lucide-react';
-import { toast } from '@radix-ui/react-toast';
+import toast from 'react-hot-toast';
 
 export default function Settings() {
   const queryClient = useQueryClient();
