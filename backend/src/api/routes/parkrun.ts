@@ -57,7 +57,8 @@ router.post('/scrape', async (req: Request, res: Response) => {
 
     res.json(result);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    console.error('Error during parkrun scrape:', error);
+    res.status(500).json({ error: error.message, details: error.stack });
   }
 });
 
@@ -69,7 +70,8 @@ router.get('/schedule', (req: Request, res: Response) => {
     const schedule = service.getSchedule();
     res.json(schedule);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching parkrun schedule:', error);
+    res.status(500).json({ error: error.message, details: error.stack });
   }
 });
 

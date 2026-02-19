@@ -227,33 +227,48 @@ export class ParkrunService {
   // Calculate next run from cron expression (simplified)
   private calculateNextRun(cronExpr: string): Date {
     // Cron: "minute hour day month weekday"
-    // parkrun is typically Saturday (6) at 8 AM
-    const parts = cronExpr.split(' ');
+    // Example: "0 8 * * 6" = 8:00 AM on Saturdays (weekday 6)
+    const parts = cronExpr.trim().split(/\s+/);
 
-    let now = new Date();
+    const now = new Date();
     let next = new Date();
 
-    if (parts.length >= 2) {
-      const hour = parseInt(parts[1]);
-      const minute = parseInt(parts[0]);
-      const weekday = parseInt(parts[5]); // 0=Sunday, 6=Saturday
+    try {
+      if (parts.length >= 5) {
+        const minute = parseInt(parts[0], 10);
+        const hour = parseInt(parts[1], 10);
+        const weekday = parseInt(parts[4], 10); // 5th part is weekday (0=Sunday, 6=Saturday)
 
-      // Set to specified day and time
-      next = new Date();
-      next.setHours(hour, minute, 0, 0);
+        if (isNaN(hour) || isNaN(minute) || isNaN(weekday)) {
+          throw new Error('Invalid cron parts - must be numbers');
+        }
 
-      // Find the next occurrence of this weekday
-      const currentWeekday = next.getDay();
-      let daysUntil = (weekday - currentWeekday + 7) % 7;
-      if (daysUntil === 0 && next < now) {
-        daysUntil = 7; // Already passed this week
+        // Set to the next occurrence of this weekday
+        next = new Date();
+        next.setHours(hour, minute, 0, 0);
+
+        const currentWeekday = next.getDay();
+        let daysUntil = (weekday - currentWeekday + 7) % 7;
+
+        // If the target day is today but time has passed, move to next week
+        if (daysUntil === 0 && next <= now) {
+          daysUntil = 7;
+        }
+
+        next.setDate(next.getDate() + daysUntil);
+
+        // Double-check we're in the future
+        if (next <= now) {
+          next.setDate(next.getDate() + 7);
+        }
+      } else {
+        // Fallback: return now + 1 day if cron format invalid
+        next = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        console.warn(`Invalid cron expression: "${cronExpr}". Using fallback schedule.`);
       }
-      next.setDate(next.getDate() + daysUntil);
-
-      // If in the past, add a week
-      if (next < now) {
-        next.setDate(next.getDate() + 7);
-      }
+    } catch (error: any) {
+      console.error(`Error calculating next run from cron "${cronExpr}":`, error.message);
+      next = new Date(now.getTime() + 24 * 60 * 60 * 1000); // fallback
     }
 
     return next;

@@ -70,9 +70,10 @@ if (process.env.NODE_ENV === 'production') {
 
 // Error handler
 app.use((err: any, req: Request, res: Response, next: Function) => {
-  console.error('Unhandled error:', err);
+  console.error(`[${new Date().toISOString()}] ${req.method} ${req.path} - Error:`, err);
   res.status(err.status || 500).json({
-    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
   });
 });
 

@@ -20,10 +20,11 @@ export default function Parkrun() {
     staleTime: 30000
   });
 
-  const { data: schedule } = useQuery({
+  const { data: schedule, error: scheduleError } = useQuery({
     queryKey: ['parkrun', 'schedule'],
     queryFn: () => getParkrunSchedule(),
-    refetchInterval: 60000 // update next run time every minute
+    refetchInterval: 60000, // update next run time every minute
+    retry: 1
   });
 
   const handleScrape = async () => {
@@ -38,14 +39,19 @@ export default function Parkrun() {
 
   const formatNextRun = (dateStr?: string) => {
     if (!dateStr) return 'Not scheduled';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-GB', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return 'Invalid date';
+      return date.toLocaleDateString('en-GB', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      return 'Error';
+    }
   };
 
   // Calculate some quick stats
@@ -56,18 +62,19 @@ export default function Parkrun() {
 
   return (
     <div className="space-y-6">
-      {/* Header with gradient */}
-      <div className="rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 p-6 text-white shadow-lg">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center">
-              <Trophy className="mr-3 h-8 w-8" />
-              Parkrun Hub
-            </h1>
-            <p className="mt-2 text-purple-100">
-              Track your parkrun performance and history
-            </p>
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Parkrun</h1>
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center text-sm text-muted-foreground">
+            <Clock className="mr-1 h-4 w-4" />
+            Next scrape: {scheduleError ? 'Error loading schedule' : formatNextRun(schedule?.next_run)}
           </div>
+          <Button onClick={handleScrape}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Scrape Now
+          </Button>
+        </div>
+      </div>
           <Button
             onClick={handleScrape}
             size="lg"
