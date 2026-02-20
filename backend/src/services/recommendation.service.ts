@@ -1,16 +1,17 @@
 import { DatabaseService } from '../services/database.service';
 import { Run } from '../models/database.types';
+import { AppConfig } from './config.service';
 
 export interface RecommendedRun {
   date: string; // ISO date
-  type: 'easy' | 'long' | 'tempo' | 'rest';
+  type: 'easy' | 'long' | 'tempo' | 'rest' | 'parkrun';
   distance?: number; // km
   duration?: number; // minutes
   notes: string;
 }
 
 export interface WeeklyRecommendation {
-  weekStart: string; // Monday date
+  weekStart: string; // Monday date as string
   targetDistance: number; // km
   runs: RecommendedRun[];
 }
@@ -26,13 +27,8 @@ export interface RecommendationResponse {
 }
 
 export class RecommendationService {
-  constructor(private db: DatabaseService) {}
+  constructor(private db: DatabaseService, private config?: AppConfig) {}
 
-  /**
-   * Generate run recommendations based on training load theory
-   * @param weeksAhead Number of weeks to plan for (default 4)
-   * @param goalDistance Optional target weekly distance (if not provided, will progress from current)
-   */
   generate(weeksAhead: number = 4, goalDistance?: number): RecommendationResponse {
     const runs = this.db.getRuns();
 
@@ -66,7 +62,14 @@ export class RecommendationService {
       .sort();
 
     // If no clear pattern, use default (Mon, Wed, Fri, Sun)
-    const runDays = preferredDays.length >= 2 ? preferredDays : [1, 3, 5, 0];
+    let runDays = preferredDays.length >= 2 ? preferredDays : [1, 3, 5, 0];
+
+    // Parkrun integration
+    const parkrunEnabled = this.config?.parkrun?.enabled === true;
+    const parkrunDistance = 5.0; // km
+    if (parkrunEnabled && !runDays.includes(6)) {
+      runDays.push(6); // add Saturday
+    }
 
     // Determine target weekly distance progression
     let currentTarget = goalDistance || Math.round(avgWeeklyDistance);
@@ -80,97 +83,130 @@ export class RecommendationService {
         Math.round(currentTarget * Math.pow(1.1, week)) // 10% weekly increase
       );
 
-      // Build schedule for this week
+      // Get Monday of this week
+      const weekMonday = this.getWeekStartDate(new Date(), week);
+
+      // Prepare parkrun and adjust target if needed
+      let parkrunRun: RecommendedRun | null = null;
+      let effectiveRunDays = [...runDays];
+      let effectiveTarget = weekTarget;
+
+      if (parkrunEnabled) {
+        effectiveTarget -= parkrunDistance;
+        if (effectiveTarget < 0) effectiveTarget = 0;
+        // Remove Saturday from other runs
+        effectiveRunDays = effectiveRunDays.filter(d => d !== 6);
+
+        // Schedule parkrun on Saturday (Monday + 5 days)
+        const parkrunDate = new Date(weekMonday);
+        parkrunDate.setDate(weekMonday.getDate() + 5);
+        parkrunRun = {
+          date: parkrunDate.toISOString().split('T')[0],
+          type: 'parkrun',
+          distance: parkrunDistance,
+          duration: Math.round(parkrunDistance * 6),
+          notes: 'Weekly parkrun event'
+        };
+      }
+
       const weekRuns: RecommendedRun[] = [];
-      const weekStart = this.getWeekStartDate(new Date(), week);
-      const monday = weekStart.getDay() || 7; // getDay() returns 0 for Sunday, we want Monday as start
-      const daysUntilMonday = (8 - monday) % 7 || 7;
-      weekStart.setDate(weekStart.getDate() - daysUntilMonday + 1);
-      weekStart.setHours(0, 0, 0, 0);
 
-      // Assign run types to available days
-      const availableDays = [...runDays].sort((a, b) => {
-        // Prioritize weekend for long run if user typically runs on weekends
-        const isWeekendA = a === 0 || a === 6;
-        const isWeekendB = b === 0 || b === 6;
-        if (isWeekendA && !isWeekendB) return 1;
-        if (!isWeekendA && isWeekendB) return -1;
-        return a - b;
-      });
-
-      // Ensure at least 2 days between hard efforts
-      const schedule: Array<{ day: number; type: 'easy' | 'long' | 'tempo' | 'rest' }> = [];
-
-      // Add long run first (weekend if possible)
-      const longRunDay = availableDays.find(d => d === 0 || d === 6) || availableDays[0];
-      schedule.push({ day: longRunDay, type: 'long' });
-
-      // Add tempo run (at least 2 days after/before long run)
-      const remainingDays = availableDays.filter(d => d !== longRunDay);
-      const tempoDay = remainingDays.find(d => {
-        const daysDiff = Math.abs(d - longRunDay);
-        return daysDiff >= 2 || daysDiff <= 2; // allow wrap-around
-      }) || remainingDays[0];
-      schedule.push({ day: tempoDay, type: 'tempo' });
-
-      // Fill remaining days with easy runs (rest if too many days)
-      const otherDays = remainingDays.filter(d => d !== tempoDay);
-      const easyDays = otherDays.slice(0, Math.max(2, Math.round(weekTarget / 8)));
-      easyDays.forEach(day => schedule.push({ day, type: 'easy' }));
-
-      // Create RecommendedRun objects
-      schedule.forEach(entry => {
-        const runDate = new Date(weekStart);
-        runDate.setDate(weekStart.getDate() + entry.day);
-
-        let distance: number;
-        let duration: number;
-        let notes: string;
-
-        switch (entry.type) {
-          case 'long':
-            distance = Math.round(weekTarget * 0.25); // 25% of weekly
-            duration = this.estimateDuration(distance, 'easy');
-            notes = `Long run at comfortable pace. Stay hydrated.`;
-            break;
-          case 'tempo':
-            distance = Math.round(weekTarget * 0.15); // 15% of weekly
-            duration = this.estimateDuration(distance, 'tempo');
-            notes = `Tempo run: warm up, ${Math.round(distance)}km at comfortably hard pace, cool down.`;
-            break;
-          case 'easy':
-            distance = Math.round(weekTarget * 0.30); // ~30% each if 2 easy runs
-            distance = Math.min(distance, 10); // cap easy runs at 10km
-            duration = this.estimateDuration(distance, 'easy');
-            notes = `Easy recovery run, conversational pace.`;
-            break;
-          case 'rest':
-          default:
-            distance = undefined;
-            duration = undefined;
-            notes = 'Rest or cross-training day. Recovery is important!';
-        }
-
-        weekRuns.push({
-          date: runDate.toISOString().split('T')[0],
-          type: entry.type,
-          distance,
-          duration,
-          notes
+      // Schedule other runs if there are available days
+      if (effectiveRunDays.length > 0) {
+        // Sort days to prioritize weekend for long run
+        const availableDays = [...effectiveRunDays].sort((a, b) => {
+          const isWeekendA = a === 0 || a === 6;
+          const isWeekendB = b === 0 || b === 6;
+          if (isWeekendA && !isWeekendB) return 1;
+          if (!isWeekendA && isWeekendB) return -1;
+          return a - b;
         });
-      });
+
+        const schedule: Array<{ day: number; type: 'easy' | 'long' | 'tempo' | 'rest' }> = [];
+
+        // Long run (prefer weekend)
+        const longRunDay = availableDays.find(d => d === 0 || d === 6) || availableDays[0];
+        schedule.push({ day: longRunDay, type: 'long' });
+
+        // Tempo run (at least 2 days apart from long run, consider week wrap)
+        const remainingDays = availableDays.filter(d => d !== longRunDay);
+        const tempoDay = remainingDays.find(d => {
+          const daysDiff = Math.abs(d - longRunDay);
+          const minDiff = Math.min(daysDiff, 7 - daysDiff);
+          return minDiff >= 2;
+        }) || remainingDays[0];
+        schedule.push({ day: tempoDay, type: 'tempo' });
+
+        // Fill remaining with easy runs
+        const otherDays = remainingDays.filter(d => d !== tempoDay);
+        const easyDays = otherDays.slice(0, Math.max(2, Math.round(effectiveTarget / 8)));
+        easyDays.forEach(day => schedule.push({ day, type: 'easy' }));
+
+        // Create RecommendedRun objects
+        schedule.forEach(entry => {
+          // Compute date offset from Monday: offset = (entry.day + 6) % 7
+          const offset = (entry.day + 6) % 7;
+          const runDate = new Date(weekMonday);
+          runDate.setDate(weekMonday.getDate() + offset);
+
+          let distance: number | undefined;
+          let duration: number | undefined;
+          let notes: string;
+
+          switch (entry.type) {
+            case 'long':
+              distance = Math.round(effectiveTarget * 0.25); // 25% of remaining
+              duration = this.estimateDuration(distance, 'easy');
+              notes = `Long run at comfortable pace. Stay hydrated.`;
+              break;
+            case 'tempo':
+              distance = Math.round(effectiveTarget * 0.15);
+              duration = this.estimateDuration(distance, 'tempo');
+              notes = `Tempo run: warm up, ${Math.round(distance)}km at comfortably hard pace, cool down.`;
+              break;
+            case 'easy':
+              distance = Math.round(effectiveTarget * 0.30);
+              distance = Math.min(distance, 10); // cap easy runs at 10km
+              duration = this.estimateDuration(distance, 'easy');
+              notes = `Easy recovery run, conversational pace.`;
+              break;
+            case 'rest':
+            default:
+              distance = undefined;
+              duration = undefined;
+              notes = 'Rest or cross-training day. Recovery is important!';
+          }
+
+          weekRuns.push({
+            date: runDate.toISOString().split('T')[0],
+            type: entry.type,
+            distance,
+            duration,
+            notes
+          });
+        });
+      }
+
+      // Add parkrun if enabled
+      if (parkrunRun) {
+        weekRuns.push(parkrunRun);
+      }
 
       // Sort by date
       weekRuns.sort((a, b) => a.date.localeCompare(b.date));
 
       recommendations.push({
-        weekStart: weekStart.toISOString().split('T')[0],
+        weekStart: weekMonday.toISOString().split('T')[0],
         targetDistance: weekTarget,
         runs: weekRuns
       });
     }
 
-    const rationale = `Based on your current weekly average of ${avgWeeklyDistance.toFixed(1)} km over ${avgRunsPerWeek.toFixed(1)} runs/week, we'll gradually increase by ~10% weekly. Your preferred run days are ${runDays.map(d => ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][d]).join(', ')}.`;
+    // Build rationale
+    let rationale = `Based on your current weekly average of ${avgWeeklyDistance.toFixed(1)} km over ${avgRunsPerWeek.toFixed(1)} runs/week, we'll gradually increase by ~10% weekly. Your preferred run days are ${runDays.map(d => ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][d]).join(', ')}.`;
+    if (parkrunEnabled) {
+      rationale += ' Parkrun on Saturdays is included in your schedule.';
+    }
 
     return {
       currentStats: {

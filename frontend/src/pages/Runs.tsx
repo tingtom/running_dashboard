@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { getRuns, deleteRun } from '@/lib/api-client';
 import { MapPin, Trash2 } from 'lucide-react';
 import RunMap from '@/components/maps/RunMap';
@@ -45,28 +47,43 @@ export default function Runs() {
         <CardHeader>
           <CardTitle>Filter Runs</CardTitle>
         </CardHeader>
-        <CardContent className="flex space-x-4">
-          <div className="grid w-full max-w-sm items-center gap-1.5">
-            <label className="text-sm font-medium">Start Date</label>
-            <input
-              type="date"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={filters.startDate}
-              onChange={(e) => setFilters(f => ({ ...f, startDate: e.target.value }))}
-            />
+        <CardContent>
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center space-x-4">
+              <div className="grid grid-cols-2 gap-1.5">
+                <div>
+                  <Label htmlFor="startDate" className="text-xs">Start</Label>
+                  <Input
+                    id="startDate"
+                    type="date"
+                    value={filters.startDate}
+                    onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="endDate" className="text-xs">End</Label>
+                  <Input
+                    id="endDate"
+                    type="date"
+                    value={filters.endDate}
+                    onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setFilters({
+                    startDate: '',
+                    endDate: ''
+                  });
+                }}
+              >
+                Clear
+              </Button>
+            </div>
           </div>
-          <div className="grid w-full max-w-sm items-center gap-1.5">
-            <label className="text-sm font-medium">End Date</label>
-            <input
-              type="date"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={filters.endDate}
-              onChange={(e) => setFilters(f => ({ ...f, endDate: e.target.value }))}
-            />
-          </div>
-          <Button variant="outline" onClick={() => setFilters({ startDate: '', endDate: '' })}>
-            Clear
-          </Button>
         </CardContent>
       </Card>
 
@@ -100,44 +117,12 @@ export default function Runs() {
                     </Button>
                   </div>
                 </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center space-x-4">
-              <div className="grid grid-cols-2 gap-1.5">
-                <div>
-                  <Label htmlFor="startDate" className="text-xs">Start</Label>
-                  <Input
-                    id="startDate"
-                    type="date"
-                    value={filters.startDate}
-                    onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="endDate" className="text-xs">End</Label>
-                  <Input
-                    id="endDate"
-                    type="date"
-                    value={filters.endDate}
-                    onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
-                  />
-                </div>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setFilters({
-                    startDate: '',
-                    endDate: '',
-                    search: '',
-                    activityType: 'all'
-                  });
-                }}
-              >
-                Clear
-              </Button>
-            </div>
+                <CardContent>
+                  <div className="flex flex-wrap items-center gap-4">
+                    <div>
+                      <p className="text-muted-foreground">Distance</p>
+                      <p className="font-medium">{(run.distance / 1000).toFixed(1)} km</p>
+                    </div>
                     <div>
                       <p className="text-muted-foreground">Duration</p>
                       <p className="font-medium">

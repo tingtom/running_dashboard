@@ -47,7 +47,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Make config and db available to routes
 app.locals.config = config;
 app.locals.db = getDatabase(config);
-app.locals.recommendationService = new (require('./services/recommendation.service').RecommendationService)(db);
+app.locals.recommendationService = new (require('./services/recommendation.service').RecommendationService)(db, config);
 
 // API Routes
 app.use('/api/runs', runsRouter);

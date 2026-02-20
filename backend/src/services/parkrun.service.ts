@@ -106,37 +106,51 @@ export class ParkrunService {
     const $ = cheerio.load(html);
     const results: ParkrunResult[] = [];
 
+    console.log(`[Parkrun] Parsing HTML for ${dateStr}, length: ${html.length} bytes`);
+
     // Find the results table - parkrun typically uses a table with class "results"
-    const table = $('table.results, table[class*="Result"], table[class*="result"]').first();
+    let table = $('table.results, table[class*="Result"], table[class*="result"]').first();
 
     if (!table.length) {
+      console.log(`[Parkrun] No table with class 'results' found for ${dateStr}`);
       // Alternative: look for any table with results data
       const tables = $('table');
+      console.log(`[Parkrun] Found ${tables.length} tables on page, scanning for results...`);
+
       let resultsTable: cheerio.Element | null = null;
 
       for (let i = 0; i < tables.length; i++) {
         const tableEl = tables[i];
         const hasHeader = $(tableEl).find('th').length >= 5;
         const numericData = $(tableEl).find('td:nth-child(2)').text().match(/\d+:\d+/); // Time format
+        console.log(`[Parkrun] Table ${i}: ${$(tableEl).find('th').length} headers, hasTime=${!!numericData}`);
         if (hasHeader || numericData) {
           resultsTable = tableEl;
           break;
         }
       }
 
-      if (!resultsTable) return results;
+      if (!resultsTable) {
+        console.log(`[Parkrun] No suitable results table found for ${dateStr}`);
+        return results;
+      }
+      table = $(resultsTable);
     }
 
-    const actualTable = table.length ? table : (table.length ? table : $('table').first());
+    console.log(`[Parkrun] Using table with ${table.find('th').length} header columns`);
 
     // Get headers
     const headers: string[] = [];
-    actualTable.find('th').each((_, th) => {
+    table.find('th').each((_, th) => {
       headers.push($(th).text().trim().toLowerCase());
     });
+    console.log(`[Parkrun] Headers: ${headers.join(', ')}`);
 
     // Get rows
-    actualTable.find('tbody tr').each((_, tr) => {
+    const rows = table.find('tbody tr');
+    console.log(`[Parkrun] Found ${rows.length} data rows`);
+    let rowCount = 0;
+    rows.each((_, tr) => {
       const row: { [key: string]: string } = {};
       $(tr).find('td').each((i, td) => {
         if (headers[i]) {
@@ -144,18 +158,23 @@ export class ParkrunService {
         }
       });
 
-      if (!row['position'] && !row['pos']) return;
+      if (!row['position'] && !row['pos']) {
+        return; // skip
+      }
 
       try {
         const result = this.mapRowToResult(row, dateStr);
         if (result) {
           results.push(result);
+          rowCount++;
         }
       } catch (e) {
         // Skip malformed rows
+        console.log(`[Parkrun] Row parsing error: ${e}`);
       }
     });
 
+    console.log(`[Parkrun] Successfully parsed ${rowCount} results for ${dateStr}`);
     return results;
   }
 

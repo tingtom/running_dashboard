@@ -128,7 +128,7 @@ export interface RecommendationResponse {
     targetDistance: number;
     runs: Array<{
       date: string;
-      type: 'easy' | 'long' | 'tempo' | 'rest';
+       type: 'easy' | 'long' | 'tempo' | 'rest' | 'parkrun';
       distance?: number;
       duration?: number;
       notes: string;

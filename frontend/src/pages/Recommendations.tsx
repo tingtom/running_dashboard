@@ -45,6 +45,8 @@ export default function Recommendations() {
         return <span className="text-lg">🚶</span>;
       case 'rest':
         return <span className="text-lg">🧘</span>;
+      case 'parkrun':
+        return <span className="text-lg">🏅</span>;
       default:
         return null;
     }
@@ -60,6 +62,8 @@ export default function Recommendations() {
         return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
       case 'rest':
         return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400';
+      case 'parkrun':
+        return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300';
       default:
         return 'bg-slate-100';
     }

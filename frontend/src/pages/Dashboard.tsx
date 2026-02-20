@@ -34,13 +34,13 @@ import toast from 'react-hot-toast';
 
   const { data: summary } = useQuery({
     queryKey: ['stats', 'summary'],
-    queryFn: () => getStatsSummary(30),
+    queryFn: () => getStatsSummary(), // all-time
     staleTime: 60000
   });
 
   const { data: consistency } = useQuery({
     queryKey: ['stats', 'consistency'],
-    queryFn: () => getConsistencyStats(30),
+    queryFn: () => getConsistencyStats(), // all-time
     staleTime: 60000
   });
 
@@ -288,10 +288,10 @@ import toast from 'react-hot-toast';
                 <span className="text-blue-100">Distance</span>
                 <span className="font-bold text-xl">{summary ? `${summary.total_distance_km} km` : '0 km'}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-blue-100">Avg speed</span>
-                <span className="font-bold text-xl">{summary?.average_speed_kmh || 0} km/h</span>
-              </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-blue-100">Avg speed</span>
+                  <span className="font-bold text-xl">{summary?.average_speed_kmh ? summary.average_speed_kmh.toFixed(1) : '0'} km/h</span>
+                </div>
             </CardContent>
           </Card>
         </div>
