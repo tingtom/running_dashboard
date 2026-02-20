@@ -100,12 +100,44 @@ export default function Runs() {
                     </Button>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Distance</p>
-                      <p className="font-medium">{(run.distance / 1000).toFixed(2)} km</p>
-                    </div>
+        <CardContent>
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center space-x-4">
+              <div className="grid grid-cols-2 gap-1.5">
+                <div>
+                  <Label htmlFor="startDate" className="text-xs">Start</Label>
+                  <Input
+                    id="startDate"
+                    type="date"
+                    value={filters.startDate}
+                    onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="endDate" className="text-xs">End</Label>
+                  <Input
+                    id="endDate"
+                    type="date"
+                    value={filters.endDate}
+                    onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setFilters({
+                    startDate: '',
+                    endDate: '',
+                    search: '',
+                    activityType: 'all'
+                  });
+                }}
+              >
+                Clear
+              </Button>
+            </div>
                     <div>
                       <p className="text-muted-foreground">Duration</p>
                       <p className="font-medium">

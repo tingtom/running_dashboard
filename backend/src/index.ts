@@ -12,18 +12,22 @@ import { loadConfig, AppConfig } from './config/config.service';
 import { initializeDatabase, getDatabase } from './services/database.service';
 import { getStravaService } from './services/strava.service';
 import { getParkrunService } from './services/parkrun.service';
-
+import { getRecommendationService } from './services/recommendation.service';
 
 import runsRouter from './api/routes/runs';
 import stravaRouter from './api/routes/strava';
 import parkrunRouter from './api/routes/parkrun';
 import statsRouter from './api/routes/stats';
+import recommendationsRouter from './api/routes/recommendations';
 
 // Load configuration
 const config: AppConfig = loadConfig();
 
 // Initialize database
 initializeDatabase(config);
+
+// Get database instance
+const db = getDatabase(config);
 
 // Create Express app
 const app: Application = express();
@@ -43,12 +47,14 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Make config and db available to routes
 app.locals.config = config;
 app.locals.db = getDatabase(config);
+app.locals.recommendationService = new (require('./services/recommendation.service').RecommendationService)(db);
 
 // API Routes
 app.use('/api/runs', runsRouter);
 app.use('/api/strava', stravaRouter);
 app.use('/api/parkrun', parkrunRouter);
 app.use('/api/stats', statsRouter);
+app.use('/api/recommendations', require('./api/routes/recommendations').default);
 
 // Health check
 app.get('/api/health', (req: Request, res: Response) => {

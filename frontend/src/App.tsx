@@ -5,6 +5,7 @@ import Runs from '@/pages/Runs';
 import Stats from '@/pages/Stats';
 import Parkrun from '@/pages/Parkrun';
 import Settings from '@/pages/Settings';
+import Recommendations from '@/pages/Recommendations';
 
 function App() {
   const navItems = [
@@ -12,6 +13,7 @@ function App() {
     { label: 'Runs', to: '/runs' },
     { label: 'Stats', to: '/stats' },
     { label: 'Parkrun', to: '/parkrun' },
+    { label: 'Recommendations', to: '/recommendations' },
     { label: 'Settings', to: '/settings' }
   ];
 
@@ -47,6 +49,7 @@ function App() {
           <Route path="/runs" element={<Runs />} />
           <Route path="/stats" element={<Stats />} />
           <Route path="/parkrun" element={<Parkrun />} />
+          <Route path="/recommendations" element={<Recommendations />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </main>

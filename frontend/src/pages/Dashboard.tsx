@@ -11,9 +11,21 @@ import {
 } from '@/lib/api-client';
 import { RefreshCw, Trophy, Activity, Flame, Target, TrendingUp, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { format } from 'date-fns';
+ import { format } from 'date-fns';
 
-export default function Dashboard() {
+ function formatStreak(days: number): string {
+   if (days >= 30) {
+     const months = Math.floor(days / 30);
+     return `${months} month${months !== 1 ? 's' : ''}`;
+   } else if (days >= 7) {
+     const weeks = Math.floor(days / 7);
+     return `${weeks} week${weeks !== 1 ? 's' : ''}`;
+   } else {
+     return `${days} day${days !== 1 ? 's' : ''}`;
+   }
+ }
+
+ export default function Dashboard() {
   const { data: runsData, refetch: refetchRuns } = useQuery({
     queryKey: ['runs'],
     queryFn: () => getRuns({ limit: 5 }),
@@ -115,7 +127,7 @@ export default function Dashboard() {
           },
           {
             title: 'Current Streak',
-            value: `${consistency?.current_streak || 0} days`,
+            value: formatStreak(consistency?.current_streak || 0),
             icon: Flame,
             color: 'text-amber-600',
             bg: 'bg-amber-50 dark:bg-amber-900/20',
@@ -212,8 +224,8 @@ export default function Dashboard() {
             <CardContent>
               {records ? (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {[
-                    { label: 'Longest Run', value: records.longest_distance ? `${(records.longest_distance.distance / 1000).toFixed(1)} km` : '—' },
+                   {[
+                     { label: 'Longest Run', value: records.longest_distance ? `${records.longest_distance.distance.toFixed(1)} km` : '—' },
                     { label: '5K PB', value: records.fastest_5k?.time || '—' },
                     { label: '10K PB', value: records.fastest_10k?.time || '—' },
                     { label: 'Most Elevation', value: records.most_elevation ? `${records.most_elevation.elevation}m` : '—' }

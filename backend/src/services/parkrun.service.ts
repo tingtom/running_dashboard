@@ -63,30 +63,32 @@ export class ParkrunService {
           continue;
         }
 
-        const results = this.parseResultsPage(response.data, dateStr);
-        eventsFound++;
+         const results = this.parseResultsPage(response.data, dateStr);
+         eventsFound++;
 
-        for (const result of results) {
-          try {
-            const existing = this.db.getParkrunResults({
-              startDate: dateStr,
-              endDate: dateStr,
-              runnerName: result.runner_name
-            });
+         console.log(`[Parkrun] ${dateStr}: parsed ${results.length} results`);
 
-            if (existing.length > 0) {
-              // Update existing
-              this.db.upsertParkrunResult(result);
-              updated++;
-            } else {
-              // Add new
-              this.db.upsertParkrunResult(result);
-              added++;
-            }
-          } catch (err: any) {
-            errors.push(`${dateStr} - ${result.runner_name}: ${err.message}`);
-          }
-        }
+         for (const result of results) {
+           try {
+             const existing = this.db.getParkrunResults({
+               startDate: dateStr,
+               endDate: dateStr,
+               runnerName: result.runner_name
+             });
+
+             if (existing.length > 0) {
+               // Update existing
+               this.db.upsertParkrunResult(result);
+               updated++;
+             } else {
+               // Add new
+               this.db.upsertParkrunResult(result);
+               added++;
+             }
+           } catch (err: any) {
+             errors.push(`${dateStr} - ${result.runner_name}: ${err.message}`);
+           }
+         }
       } catch (error: any) {
         if (error.response?.status === 404) {
           // No event on this date, skip silently

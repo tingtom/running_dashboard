@@ -115,3 +115,32 @@ export const getWeeklyDistance = async (weeks?: number) => {
   const response = await api.get('/stats/weekly-distance', { params: { weeks } });
   return response.data;
 };
+
+// Recommendations
+export interface RecommendationResponse {
+  currentStats: {
+    weeklyAverage: number;
+    currentRunsPerWeek: number;
+    last4Weeks: { week: string; distance: number; runs: number }[];
+  };
+  recommendations: Array<{
+    weekStart: string;
+    targetDistance: number;
+    runs: Array<{
+      date: string;
+      type: 'easy' | 'long' | 'tempo' | 'rest';
+      distance?: number;
+      duration?: number;
+      notes: string;
+    }>;
+  }>;
+  rationale: string;
+}
+
+export const getRecommendations = async (weeks?: number, goalDistance?: number) => {
+  const params: any = {};
+  if (weeks) params.weeks = weeks;
+  if (goalDistance) params.goalDistance = goalDistance;
+  const response = await api.get('/recommendations', { params });
+  return response.data as RecommendationResponse;
+};

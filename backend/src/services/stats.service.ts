@@ -123,31 +123,55 @@ export class StatsService {
   // Weekly distance chart data
   getWeeklyDistance(weeks: number = 12): { week: string; distance: number }[] {
     const runs = this.db.getRuns();
-    const weeklyData: { [key: number]: number } = {};
+    const weeklyData: { [key: number]: number } = {}; // key: weekStart timestamp (ms)
 
     const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // midnight today
+
+    // Find the start of the current week (Sunday)
+    const dayOfWeek = today.getDay(); // 0=Sunday, 1=Monday, ...
+    const currentWeekStart = new Date(today);
+    currentWeekStart.setDate(today.getDate() - dayOfWeek); // go back to Sunday
+    currentWeekStart.setHours(0, 0, 0, 0);
+
+    // Initialize weeks
     for (let i = 0; i < weeks; i++) {
-      const weekStart = new Date(now);
-      weekStart.setDate(weekStart.getDate() - (i * 7));
-      weekStart.setHours(0, 0, 0, 0);
-      const weekNum = Math.floor(weekStart.getTime() / (7 * 24 * 60 * 60 * 1000));
-      weeklyData[weekNum] = 0;
+      const weekStart = new Date(currentWeekStart);
+      weekStart.setDate(currentWeekStart.getDate() - (i * 7));
+      const weekKey = weekStart.getTime();
+      weeklyData[weekKey] = 0;
     }
 
+    // Aggregate runs
     for (const run of runs) {
       const runDate = new Date(run.start_date);
-      const weekNum = Math.floor(runDate.getTime() / (7 * 24 * 60 * 60 * 1000));
-      if (weeklyData[weekNum] !== undefined) {
-        weeklyData[weekNum] += run.distance / 1000; // Convert to km
+      // Compute week start (Sunday) for runDate
+      const runDay = runDate.getDay();
+      const runWeekStart = new Date(runDate);
+      runWeekStart.setDate(runDate.getDate() - runDay);
+      runWeekStart.setHours(0, 0, 0, 0);
+      const weekKey = runWeekStart.getTime();
+
+      if (weeklyData.hasOwnProperty(weekKey)) {
+        weeklyData[weekKey] += run.distance / 1000; // Convert to km
       }
     }
 
-    return Object.entries(weeklyData)
-      .map(([weekNum, distance]) => ({
-        week: `Week ${parseInt(weekNum)}`,
+    // Convert to array, sort by weekKey ascending (oldest first), then format
+    const result: { weekKey: number; weekLabel: string; distance: number }[] = [];
+    Object.entries(weeklyData).forEach(([weekKey, distance]) => {
+      const weekDate = new Date(parseInt(weekKey));
+      const weekLabel = weekDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      result.push({
+        weekKey: parseInt(weekKey),
+        weekLabel,
         distance: Math.round(distance * 10) / 10
-      }))
-      .sort((a, b) => a.week.localeCompare(b.week));
+      });
+    });
+
+    result.sort((a, b) => a.weekKey - b.weekKey);
+
+    return result.map(item => ({ week: item.weekLabel, distance: item.distance }));
   }
 
   // Helper: format pace (seconds per km) to MM:SS

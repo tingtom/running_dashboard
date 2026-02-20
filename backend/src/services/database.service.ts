@@ -320,19 +320,19 @@ export class DatabaseService {
   // Statistics
   getRunStats(days?: number): RunStats {
     const dateCondition = days ? `WHERE start_date >= datetime('now', '-${days} days')` : '';
-    const stmt = this.db.prepare(`
-      SELECT
-        COUNT(*) as total_runs,
-        SUM(distance) as total_distance,
-        SUM(moving_time) as total_time,
-        AVG(distance) as average_distance,
-        AVG(CASE WHEN distance > 0 THEN (moving_time * 1000) / distance END) as avg_pace_seconds,
-        AVG(average_speed) * 3.6 as avg_speed_kmh,
-        MAX(distance) as longest_run,
-        strftime('%w', start_date_local) as weekday
-      FROM runs
-      ${dateCondition}
-    `);
+     const stmt = this.db.prepare(`
+       SELECT
+         COUNT(*) as total_runs,
+         SUM(distance) as total_distance,
+         SUM(moving_time) as total_time,
+         AVG(distance) as average_distance,
+         AVG(CASE WHEN distance > 0 AND moving_time > 0 THEN (moving_time * 1000) / distance END) as avg_pace_seconds,
+         AVG(average_speed) * 3.6 as avg_speed_kmh,
+         MAX(distance) as longest_run,
+         strftime('%w', start_date_local) as weekday
+       FROM runs
+       ${dateCondition}
+     `);
     const result = (stmt.get() as any) || {};
 
     // Determine most frequent day

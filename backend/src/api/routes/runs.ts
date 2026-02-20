@@ -124,18 +124,18 @@ router.get('/stats/summary', (req: Request, res: Response) => {
     const days = req.query.days ? parseInt(req.query.days as string) : undefined;
     const stats = db.getRunStats(days);
 
-    res.json({
-      total_runs: stats.total_runs,
-      total_distance: stats.total_distance,
-      total_distance_km: Math.round(stats.total_distance / 10) / 100, // Convert to km
-      total_time: stats.total_time,
-      total_time_hours: Math.round((stats.total_time / 3600) * 10) / 10,
-      average_distance_per_run: Math.round(stats.average_distance),
-      average_pace: formatPace(stats.average_pace_seconds),
-      average_speed_kmh: Math.round(stats.average_speed_kmh * 10) / 10,
-      longest_run: Math.round(stats.longest_run),
-      most_frequent_day: stats.most_frequent_day
-    });
+     res.json({
+       total_runs: stats.total_runs,
+       total_distance: stats.total_distance,
+       total_distance_km: parseFloat((stats.total_distance / 1000).toFixed(1)),
+       total_time: stats.total_time,
+       total_time_hours: Math.round((stats.total_time / 3600) * 10) / 10,
+       average_distance_per_run: Math.round(stats.average_distance),
+       average_pace: formatPace(stats.average_pace_seconds),
+       average_speed_kmh: parseFloat(stats.average_speed_kmh.toFixed(1)),
+       longest_run: Math.round(stats.longest_run),
+       most_frequent_day: stats.most_frequent_day
+     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
