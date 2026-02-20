@@ -6,6 +6,7 @@ import Stats from '@/pages/Stats';
 import Parkrun from '@/pages/Parkrun';
 import Settings from '@/pages/Settings';
 import Recommendations from '@/pages/Recommendations';
+import Calendar from '@/pages/Calendar';
 
 function App() {
   const navItems = [

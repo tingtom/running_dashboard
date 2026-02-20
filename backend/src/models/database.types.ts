@@ -150,3 +150,12 @@ export interface StravaAthlete {
   profile_medium: string;
   profile: string;
 }
+
+// Custom calendar events
+export interface CustomEvent {
+  id: number;
+  date: string; // ISO 8601 date (YYYY-MM-DD)
+  title: string;
+  description?: string;
+  created_at: string;
+}

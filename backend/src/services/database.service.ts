@@ -2,7 +2,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import { AppConfig } from '../config/config.service';
-import { Run, ParkrunResult, SyncMetadata, RunStats, PaceProgress, LocationCluster, ConsistencyStats } from '../models/database.types';
+import { Run, ParkrunResult, SyncMetadata, RunStats, PaceProgress, LocationCluster, ConsistencyStats, CustomEvent } from '../models/database.types';
 
 export class DatabaseService {
   private db: Database.Database;
@@ -78,12 +78,21 @@ export class DatabaseService {
         UNIQUE(parkrun_date, runner_name, finish_time)
       );
 
-      CREATE TABLE IF NOT EXISTS sync_metadata (
-        key TEXT PRIMARY KEY,
-        value TEXT,
-        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
+       CREATE TABLE IF NOT EXISTS sync_metadata (
+         key TEXT PRIMARY KEY,
+         value TEXT,
+         updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+       );
+
+       CREATE TABLE IF NOT EXISTS custom_events (
+         id INTEGER PRIMARY KEY AUTOINCREMENT,
+         date TEXT NOT NULL, -- ISO 8601 date (YYYY-MM-DD)
+         title TEXT NOT NULL,
+         description TEXT,
+         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+         updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+       );
+     `);
   }
 
   private createIndexes(): void {
@@ -91,10 +100,11 @@ export class DatabaseService {
       CREATE INDEX IF NOT EXISTS idx_runs_start_date ON runs(start_date);
       CREATE INDEX IF NOT EXISTS idx_runs_type ON runs(type);
       CREATE INDEX IF NOT EXISTS idx_runs_strava_id ON runs(strava_id);
-      CREATE INDEX IF NOT EXISTS idx_parkrun_results_date ON parkrun_results(parkrun_date);
-      CREATE INDEX IF NOT EXISTS idx_parkrun_results_name ON parkrun_results(runner_name);
-      CREATE INDEX IF NOT EXISTS idx_sync_metadata_key ON sync_metadata(key);
-    `);
+       CREATE INDEX IF NOT EXISTS idx_parkrun_results_date ON parkrun_results(parkrun_date);
+       CREATE INDEX IF NOT EXISTS idx_parkrun_results_name ON parkrun_results(runner_name);
+       CREATE INDEX IF NOT EXISTS idx_sync_metadata_key ON sync_metadata(key);
+       CREATE INDEX IF NOT EXISTS idx_custom_events_date ON custom_events(date);
+     `);
   }
 
   // Runs CRUD
@@ -298,6 +308,72 @@ export class DatabaseService {
     const stmt = this.db.prepare(`SELECT COUNT(*) as count FROM parkrun_results ${whereClause}`);
     const result = stmt.get(...values) as { count: number };
     return result.count;
+   }
+
+  // Custom Events CRUD
+  insertCustomEvent(event: Omit<CustomEvent, 'id' | 'created_at' | 'updated_at'>): number {
+    const stmt = this.db.prepare(`
+      INSERT INTO custom_events (date, title, description)
+      VALUES (?, ?, ?)
+    `);
+    const result = stmt.run(event.date, event.title, event.description || null);
+    return result.lastInsertRowid as number;
+  }
+
+  getCustomEvents(params?: {
+    startDate?: string;
+    endDate?: string;
+    limit?: number;
+    offset?: number;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  }): CustomEvent[] {
+    const conditions: string[] = [];
+    const values: any[] = [];
+
+    if (params?.startDate) {
+      conditions.push('date >= ?');
+      values.push(params.startDate);
+    }
+    if (params?.endDate) {
+      conditions.push('date <= ?');
+      values.push(params.endDate);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const orderBy = params?.sortBy ? `ORDER BY ${params.sortBy} ${params.sortOrder || 'ASC'}` : 'ORDER BY date DESC, id ASC';
+    const limit = params?.limit ? `LIMIT ${params.limit}` : '';
+    const offset = params?.offset ? `OFFSET ${params.offset}` : '';
+
+    const stmt = this.db.prepare(`SELECT * FROM custom_events ${whereClause} ${orderBy} ${limit} ${offset}`);
+    return stmt.all(...values) as CustomEvent[];
+  }
+
+  getCustomEvent(id: number): CustomEvent | null {
+    const stmt = this.db.prepare('SELECT * FROM custom_events WHERE id = ?');
+    return stmt.get(id) as CustomEvent | null;
+  }
+
+  updateCustomEvent(id: number, event: Partial<CustomEvent>): boolean {
+    const fields: string[] = [];
+    const values: any[] = [];
+
+    if (event.date !== undefined) { fields.push('date = ?'); values.push(event.date); }
+    if (event.title !== undefined) { fields.push('title = ?'); values.push(event.title); }
+    if (event.description !== undefined) { fields.push('description = ?'); values.push(event.description); }
+
+    if (fields.length === 0) return false;
+
+    values.push(id);
+    const stmt = this.db.prepare(`UPDATE custom_events SET ${fields.join(', ')}, updated_at = datetime('now') WHERE id = ?`);
+    const result = stmt.run(...values);
+    return result.changes > 0;
+  }
+
+  deleteCustomEvent(id: number): boolean {
+    const stmt = this.db.prepare('DELETE FROM custom_events WHERE id = ?');
+    const result = stmt.run(id);
+    return result.changes > 0;
   }
 
   // Sync Metadata

@@ -19,6 +19,8 @@ import stravaRouter from './api/routes/strava';
 import parkrunRouter from './api/routes/parkrun';
 import statsRouter from './api/routes/stats';
 import recommendationsRouter from './api/routes/recommendations';
+import calendarRouter from './api/routes/calendar';
+import customEventsRouter from './api/routes/custom-events';
 
 // Load configuration
 const config: AppConfig = loadConfig();
@@ -55,6 +57,8 @@ app.use('/api/strava', stravaRouter);
 app.use('/api/parkrun', parkrunRouter);
 app.use('/api/stats', statsRouter);
 app.use('/api/recommendations', require('./api/routes/recommendations').default);
+app.use('/api/calendar', calendarRouter);
+app.use('/api/custom-events', customEventsRouter);
 
 // Health check
 app.get('/api/health', (req: Request, res: Response) => {

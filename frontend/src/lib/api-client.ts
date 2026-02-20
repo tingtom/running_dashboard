@@ -144,3 +144,61 @@ export const getRecommendations = async (weeks?: number, goalDistance?: number) 
   const response = await api.get('/recommendations', { params });
   return response.data as RecommendationResponse;
 };
+
+// Calendar
+export interface CalendarEvent {
+  id: string;
+  date: string;
+  type: 'run' | 'parkrun' | 'recommendation' | 'custom';
+  title: string;
+  distance_km?: number | null;
+  duration_minutes?: number | null;
+  notes?: string;
+  source: string;
+}
+
+export const getCalendarEvents = async (startDate: string, endDate: string) => {
+  const response = await api.get('/calendar/events', { params: { startDate, endDate } });
+  return response.data as { events: CalendarEvent[] };
+};
+
+// Custom Events
+export interface CustomEvent {
+  id: number;
+  date: string;
+  title: string;
+  description?: string;
+  created_at: string;
+}
+
+export const getCustomEvents = async (params?: {
+  startDate?: string;
+  endDate?: string;
+  limit?: number;
+  offset?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}) => {
+  const response = await api.get('/custom-events', { params });
+  return response.data as CustomEvent[];
+};
+
+export const getCustomEvent = async (id: number) => {
+  const response = await api.get(`/custom-events/${id}`);
+  return response.data as CustomEvent;
+};
+
+export const createCustomEvent = async (event: { date: string; title: string; description?: string }) => {
+  const response = await api.post('/custom-events', event);
+  return response.data as CustomEvent;
+};
+
+export const updateCustomEvent = async (id: number, event: Partial<{ date: string; title: string; description: string }>) => {
+  const response = await api.put(`/custom-events/${id}`, event);
+  return response.data as CustomEvent;
+};
+
+export const deleteCustomEvent = async (id: number) => {
+  const response = await api.delete(`/custom-events/${id}`);
+  return response.data as { success: boolean };
+};
