@@ -2,6 +2,17 @@ import { AppConfig } from '../config/config.service';
 import { DatabaseService, getDatabase } from './database.service';
 import { RunStats, PaceProgress, LocationCluster, ConsistencyStats } from '../models/database.types';
 
+// Helper to convert parkrun finish_time (HH:MM:SS or MM:SS) to seconds
+function parseTimeToSeconds(time: string): number {
+  const parts = time.split(':').map(Number);
+  if (parts.length === 3) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  } else if (parts.length === 2) {
+    return parts[0] * 60 + parts[1];
+  }
+  return 0;
+}
+
 export class StatsService {
   private config: AppConfig;
   private db: DatabaseService;
@@ -11,9 +22,60 @@ export class StatsService {
     this.db = getDatabase(config);
   }
 
-  // Overall summary stats
+  // Overall summary stats (including parkrun if enabled)
   getSummary(days?: number): RunStats {
-    return this.db.getRunStats(days);
+    const runStats = this.db.getRunStats(days);
+
+    if (this.config.parkrun.enabled) {
+      // Compute date boundaries for parkrun filter
+      let startDate?: string;
+      let endDate?: string;
+      if (days) {
+        const end = new Date();
+        const start = new Date();
+        start.setDate(end.getDate() - days);
+        startDate = start.toISOString().split('T')[0];
+        endDate = end.toISOString().split('T')[0];
+      }
+      const parkrunResults = this.db.getParkrunResults({ startDate, endDate });
+
+      if (parkrunResults.length > 0) {
+        let prDistance = 0;
+        let prTime = 0;
+        let prCount = parkrunResults.length;
+        let maxDist = 0;
+        for (const pr of parkrunResults) {
+          prDistance += pr.distance;
+          prTime += parseTimeToSeconds(pr.finish_time);
+          if (pr.distance > maxDist) maxDist = pr.distance;
+        }
+
+        // Update totals
+        runStats.total_runs += prCount;
+        runStats.total_distance += prDistance;
+        runStats.total_time += prTime;
+
+        // Recompute averages
+        if (runStats.total_runs > 0) {
+          runStats.average_distance = runStats.total_distance / runStats.total_runs;
+        }
+        if (runStats.total_distance > 0 && runStats.total_time > 0) {
+          runStats.average_speed_kmh = parseFloat(((runStats.total_distance / 1000) / (runStats.total_time / 3600)).toFixed(1));
+          runStats.average_pace_seconds = Math.round(runStats.total_time / (runStats.total_distance / 1000));
+        } else {
+          runStats.average_speed_kmh = 0;
+          runStats.average_pace_seconds = 0;
+        }
+
+        // Update longest run
+        if (maxDist > runStats.longest_run) {
+          runStats.longest_run = maxDist;
+        }
+        // Note: most_frequent_day remains from runs only; could be recalculated but skip
+      }
+    }
+
+    return runStats;
   }
 
   // Pace improvement over time

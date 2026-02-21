@@ -496,94 +496,111 @@ export class DatabaseService {
   }
 
   getConsistencyStats(days: number = 30): ConsistencyStats {
-    // Get runs in period
-    const periodCondition = `start_date >= datetime('now', '-${days} days')`;
+    const now = new Date();
+    const periodCondition = `start_date >= date('now', '-${days} days')`;
 
     // Count runs in period
     const countStmt = this.db.prepare(`SELECT COUNT(*) as count FROM runs WHERE ${periodCondition}`);
     const countResult = countStmt.get() as { count: number };
+    let runs_in_period = countResult.count;
 
-    // Find last run
-    const lastRunStmt = this.db.prepare(`
-      SELECT start_date FROM runs
+    // Activity dates set for current streak (within period)
+    const activityDatesSet = new Set<number>();
+
+    // Add run dates in period (distinct days)
+    const runDatesStmt = this.db.prepare(`
+      SELECT DATE(start_date) as date FROM runs
       WHERE ${periodCondition}
-      ORDER BY start_date DESC
-      LIMIT 1
+      GROUP BY date
     `);
-    const lastRun = lastRunStmt.get() as { start_date: string } | undefined;
-    const lastRunDate = lastRun ? new Date(lastRun.start_date) : new Date(0);
-    const daysSinceLast = Math.floor((Date.now() - lastRunDate.getTime()) / (1000 * 60 * 60 * 24));
+    const runDateRows = runDatesStmt.all() as { date: string }[];
+    for (const row of runDateRows) {
+      activityDatesSet.add(new Date(row.date + 'T00:00:00').getTime());
+    }
 
-    // Calculate current streak
-    const streakStmt = this.db.prepare(`
-      SELECT start_date FROM runs
-      WHERE ${periodCondition}
-      ORDER BY start_date DESC
-    `);
-    const runs = streakStmt.all() as { start_date: string }[];
+    // Include parkrun if enabled
+    if (this.config.parkrun.enabled) {
+      // Parkrun count in period
+      const prCountStmt = this.db.prepare(`
+        SELECT COUNT(*) as count FROM parkrun_results
+        WHERE parkrun_date IS NOT NULL AND parkrun_date >= date('now', '-${days} days')
+      `);
+      const prCountResult = prCountStmt.get() as { count: number };
+      runs_in_period += prCountResult.count;
 
+      // Parkrun distinct dates in period
+      const prDateStmt = this.db.prepare(`
+        SELECT DATE(parkrun_date) as date FROM parkrun_results
+        WHERE parkrun_date IS NOT NULL AND parkrun_date >= date('now', '-${days} days')
+        GROUP BY date
+      `);
+      const prDateRows = prDateStmt.all() as { date: string }[];
+      for (const row of prDateRows) {
+        activityDatesSet.add(new Date(row.date + 'T00:00:00').getTime());
+      }
+    }
+
+    const activeDates = Array.from(activityDatesSet).sort((a, b) => a - b);
+
+    // Current streak: consecutive days ending at most recent activity date within period
     let currentStreak = 0;
-    let checkDate = new Date();
-    checkDate.setHours(0, 0, 0, 0);
-
-    const runDates = new Set(
-      runs.map(r => {
-        const d = new Date(r.start_date);
-        d.setHours(0, 0, 0, 0);
-        return d.getTime();
-      })
-    );
-
-    // Count consecutive days with runs going backward from today/yesterday
-    if (runs.length > 0) {
-      // Start from most recent run date
-      const mostRecent = new Date(runs[0].start_date);
-      mostRecent.setHours(0, 0, 0, 0);
-      checkDate = new Date(mostRecent);
-
-      while (runDates.has(checkDate.getTime())) {
+    if (activeDates.length > 0) {
+      let check = activeDates[activeDates.length - 1];
+      while (activityDatesSet.has(check)) {
         currentStreak++;
-        checkDate.setDate(checkDate.getDate() - 1);
+        check -= 86400000; // 24 hours in ms
       }
     }
 
-    // Calculate longest streak (all time)
-    const allRunsStmt = this.db.prepare('SELECT start_date FROM runs ORDER BY start_date ASC');
+    // Longest streak: all-time combined dates (runs + parkrun)
+    const allTimeDatesSet = new Set<number>();
+    const allRunsStmt = this.db.prepare('SELECT start_date FROM runs');
     const allRuns = allRunsStmt.all() as { start_date: string }[];
-    const allRunDates = Array.from(new Set(
-      allRuns.map(r => {
-        const d = new Date(r.start_date);
-        d.setHours(0, 0, 0, 0);
-        return d.getTime();
-      })
-    )).sort((a, b) => a - b);
-
-    let longestStreak = 0;
-    let tempStreak = 0;
-    let prevDate = 0;
-
-    for (const runTime of allRunDates) {
-      if (tempStreak === 0) {
-        tempStreak = 1;
-      } else if (runTime - prevDate === 24 * 60 * 60 * 1000) {
-        tempStreak++;
-      } else {
-        longestStreak = Math.max(longestStreak, tempStreak);
-        tempStreak = 1;
-      }
-      prevDate = runTime;
+    for (const r of allRuns) {
+      allTimeDatesSet.add(new Date(r.start_date).setHours(0, 0, 0, 0));
     }
-    longestStreak = Math.max(longestStreak, tempStreak);
+    if (this.config.parkrun.enabled) {
+      const allPrStmt = this.db.prepare('SELECT parkrun_date FROM parkrun_results WHERE parkrun_date IS NOT NULL');
+      const allPrs = allPrStmt.all() as { parkrun_date: string }[];
+      for (const p of allPrs) {
+        allTimeDatesSet.add(new Date(p.parkrun_date).setHours(0, 0, 0, 0));
+      }
+    }
+    const allTimeSorted = Array.from(allTimeDatesSet).sort((a, b) => a - b);
+    let longestStreak = 0;
+    if (allTimeSorted.length > 0) {
+      let tempStreak = 1;
+      let prev = allTimeSorted[0];
+      for (let i = 1; i < allTimeSorted.length; i++) {
+        const curr = allTimeSorted[i];
+        if (curr - prev === 86400000) {
+          tempStreak++;
+        } else {
+          longestStreak = Math.max(longestStreak, tempStreak);
+          tempStreak = 1;
+        }
+        prev = curr;
+      }
+      longestStreak = Math.max(longestStreak, tempStreak);
+    }
+
+    // Days since last activity (run or parkrun)
+    const lastActivity = allTimeSorted.length > 0 ? allTimeSorted[allTimeSorted.length - 1] : 0;
+    const daysSinceLast = lastActivity === 0
+      ? days // no activity ever, use period as fallback
+      : Math.floor((now.getTime() - lastActivity) / (1000 * 60 * 60 * 24));
 
     // Average runs per week
-    const avgPerWeek = days > 0 ? (countResult.count / (days / 7)) : 0;
+    const weeks = days / 7;
+    const avgRunsPerWeek = runs_in_period / weeks;
+    const roundedAvg = Math.round(avgRunsPerWeek * 10) / 10;
 
     return {
       period_days: days,
-      runs_in_period: countResult.count,
-      current_streak: currentStreak,
-      longest_streak: longestStreak,
-      avg_runs_per_week: Math.round(avgPerWeek * 10) / 10,
+      runs_in_period,
+      current_streak,
+      longest_streak,
+      avg_runs_per_week: roundedAvg,
       days_since_last_run: daysSinceLast
     };
   }
