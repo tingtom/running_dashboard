@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { getDatabase } from '../services/database.service';
-import { getRecommendationService } from '../services/recommendation.service';
+import { getDatabase } from '../../services/database.service';
+import { getRecommendationService } from '../../services/recommendation.service';
 
 const router = Router();
 
