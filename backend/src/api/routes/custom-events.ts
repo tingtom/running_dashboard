@@ -2,11 +2,11 @@ import { Router } from 'express';
 import { getDatabase } from '../../services/database.service';
 
 const router = Router();
-const db = getDatabase();
 
 // GET /api/custom-events?startDate=...&endDate=...&limit=...&offset=...
 router.get('/', (req, res) => {
   try {
+    const db = getDatabase();
     const events = db.getCustomEvents({
       startDate: req.query.startDate as string | undefined,
       endDate: req.query.endDate as string | undefined,
@@ -24,6 +24,7 @@ router.get('/', (req, res) => {
 // GET /api/custom-events/:id
 router.get('/:id', (req, res) => {
   try {
+    const db = getDatabase();
     const event = db.getCustomEvent(parseInt(req.params.id));
     if (!event) {
       return res.status(404).json({ error: 'Event not found' });
@@ -37,6 +38,7 @@ router.get('/:id', (req, res) => {
 // POST /api/custom-events
 router.post('/', (req, res) => {
   try {
+    const db = getDatabase();
     const { date, title, description } = req.body;
     if (!date || !title) {
       return res.status(400).json({ error: 'Date and title are required' });
@@ -52,6 +54,7 @@ router.post('/', (req, res) => {
 // PUT /api/custom-events/:id
 router.put('/:id', (req, res) => {
   try {
+    const db = getDatabase();
     const id = parseInt(req.params.id);
     const { date, title, description } = req.body;
     const success = db.updateCustomEvent(id, { date, title, description });
@@ -68,6 +71,7 @@ router.put('/:id', (req, res) => {
 // DELETE /api/custom-events/:id
 router.delete('/:id', (req, res) => {
   try {
+    const db = getDatabase();
     const id = parseInt(req.params.id);
     const success = db.deleteCustomEvent(id);
     if (!success) {
