@@ -101,102 +101,100 @@ export class ParkrunService {
     return { eventsFound, resultsAdded: added, resultsUpdated: updated, errors };
   }
 
-   // Parse HTML page and extract results
+   // Parse HTML page and extract results using data attributes
    private parseResultsPage(html: string, dateStr: string): ParkrunResult[] {
      const $ = cheerio.load(html);
      const results: ParkrunResult[] = [];
 
      console.log(`[Parkrun] Parsing HTML for ${dateStr}, length: ${html.length} bytes`);
 
-     // Find the results table - parkrun typically uses a table with class "results"
-     let table = $('table.results, table[class*="Result"], table[class*="result"]').first();
+     // Find the results table - parkrun uses table.Results-table
+     let table = $('table.Results-table').first();
 
      if (!table.length) {
-       console.log(`[Parkrun] No table with class 'results' found for ${dateStr}`);
-       // Alternative: look for any table with results data
+       console.log(`[Parkrun] No table with class 'Results-table' found for ${dateStr}`);
+       // Fallback: try any table with results data
        const tables = $('table');
-       console.log(`[Parkrun] Found ${tables.length} tables on page, scanning for results...`);
-
-       let resultsTable: cheerio.Element | null = null;
-
+       console.log(`[Parkrun] Found ${tables.length} tables on page, looking for results table...`);
        for (let i = 0; i < tables.length; i++) {
          const tableEl = tables[i];
          const hasHeader = $(tableEl).find('th').length >= 5;
-         const numericData = $(tableEl).find('td:nth-child(2)').text().match(/\d+:\d+/); // Time format
+         const numericData = $(tableEl).find('td:nth-child(2)').text().match(/\d+:\d+/);
          console.log(`[Parkrun] Table ${i}: ${$(tableEl).find('th').length} headers, hasTime=${!!numericData}`);
          if (hasHeader || numericData) {
-           resultsTable = tableEl;
+           table = $(tableEl);
            break;
          }
        }
-
-       if (!resultsTable) {
+       if (!table.length) {
          console.log(`[Parkrun] No suitable results table found for ${dateStr}`);
          return results;
        }
-       table = $(resultsTable);
      }
 
-     console.log(`[Parkrun] Using table with ${table.find('th').length} header columns`);
+     console.log(`[Parkrun] Using table.Results-table with ${table.find('tbody tr').length} rows`);
 
-     // Get headers
-     const headers: string[] = [];
-     table.find('th').each((_, th) => {
-       headers.push($(th).text().trim().toLowerCase());
-     });
-     console.log(`[Parkrun] Headers: ${headers.join(', ')}`);
-
-     // Get rows
-     const rows = table.find('tbody tr');
-     console.log(`[Parkrun] Found ${rows.length} data rows`);
-     let rowCount = 0;
-     let mappingFailures = 0;
      const runnerNameLower = this.config.runner_name?.toLowerCase().trim();
+     let rowCount = 0;
 
-     rows.each((_, tr) => {
-       const row: { [key: string]: string } = {};
-       $(tr).find('td').each((i, td) => {
-         if (headers[i]) {
-           row[headers[i]] = $(td).text().trim();
+     // Parse each row using data attributes
+     table.find('tbody tr').each((_, tr) => {
+       const $tr = $(tr);
+
+       // Read data attributes directly
+       const runnerName = ($tr.data('name') as string)?.trim() || '';
+       if (!runnerName) return;
+
+       const positionRaw = $tr.data('position');
+       const position = positionRaw != null ? parseInt(positionRaw.toString()) : null;
+
+       const finishTime = ($tr.data('time') as string)?.trim() || '';
+
+       const totalRunnersRaw = $tr.data('runs');
+       const totalRunners = totalRunnersRaw != null ? parseInt(totalRunnersRaw.toString()) : null;
+
+       const genderRaw = ($tr.data('gender') as string)?.toUpperCase() || '';
+       const gender = genderRaw === 'F' || genderRaw === 'FEMALE' ? 'F' : 'M';
+
+       const ageCategory = ($tr.data('agegroup') as string)?.trim() || '';
+
+       const ageGradeRaw = $tr.data('agegrade');
+       let ageGrading: number | null = null;
+       if (ageGradeRaw != null) {
+         const cleaned = ageGradeRaw.toString().replace(/[^0-9.]/g, '');
+         ageGrading = cleaned ? parseFloat(cleaned) : null;
+       }
+
+       const club = ($tr.data('club') as string)?.trim() || null;
+       const achievement = ($tr.data('achievement') as string)?.trim() || null;
+       const note = achievement || null;
+
+       // Filter by runner name if configured (case-insensitive)
+       if (runnerNameLower && runnerName.toLowerCase().trim() !== runnerNameLower) {
+         if (rowCount < 3) {
+           console.log(`[Parkrun] Skipping runner: "${runnerName}" (doesn't match filter "${this.config.runner_name}")`);
          }
+         return;
+       }
+
+       results.push({
+         parkrun_date: new Date(dateStr).toISOString(),
+         event_number: this.extractEventNumberFromUrl() || 0,
+         runner_name: runnerName,
+         position,
+         total_runners: totalRunners,
+         finish_time: finishTime,
+         age_category: ageCategory,
+         age_grading: ageGrading,
+         gender,
+         gender_position: null, // Not available in data attributes
+         club,
+         note
        });
-
-       if (!row['position'] && !row['pos']) {
-         return; // skip
-       }
-
-       try {
-         const result = this.mapRowToResult(row, dateStr);
-         if (result) {
-           // Filter by runner name if configured (case-insensitive)
-           if (runnerNameLower) {
-             const resultName = result.runner_name.toLowerCase().trim();
-             if (resultName !== runnerNameLower) {
-               mappingFailures++;
-               if (mappingFailures <= 3) {
-                 console.log(`[Parkrun] Runner name mismatch: "${result.runner_name}" vs configured "${this.config.runner_name}"`);
-               }
-               return; // skip this row
-             }
-           }
-           results.push(result);
-           rowCount++;
-         } else {
-           mappingFailures++;
-         }
-       } catch (e) {
-         // Skip malformed rows
-         console.log(`[Parkrun] Row parsing error: ${e}`);
-         mappingFailures++;
-       }
+       rowCount++;
      });
 
      console.log(`[Parkrun] Successfully parsed ${rowCount} results for ${dateStr}`);
-     if (mappingFailures > 0 && mappingFailures <= 3) {
-       console.log(`[Parkrun] First failure row data:`, rows.get(0));
-     } else if (mappingFailures > 3) {
-       console.log(`[Parkrun] Total mapping failures: ${mappingFailures}`);
-     }
      return results;
    }
 
