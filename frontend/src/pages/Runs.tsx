@@ -48,7 +48,7 @@ export default function Runs() {
           <CardTitle>Filter Runs</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap items-center gap-4">
+          <div className="flex flex-wrap items-end gap-4">
             <div className="flex items-center space-x-4">
               <div className="grid grid-cols-2 gap-1.5">
                 <div>

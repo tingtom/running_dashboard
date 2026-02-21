@@ -24,11 +24,11 @@ import {
 } from 'lucide-react';
 
 export default function Stats() {
-  const { data: summary } = useQuery({
-    queryKey: ['stats', 'summary'],
-    queryFn: () => getStatsSummary(365),
-    staleTime: 60000
-  });
+   const { data: summary } = useQuery({
+     queryKey: ['stats', 'summary'],
+     queryFn: () => getStatsSummary(),
+     staleTime: 60000
+   });
 
   const { data: progress } = useQuery({
     queryKey: ['stats', 'progress'],
